@@ -10,10 +10,15 @@ import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+import ru.yandex.qatools.allure.annotations.*;
+import ru.yandex.qatools.allure.model.DescriptionType;
+import ru.yandex.qatools.allure.model.SeverityLevel;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class TestClass {
 
@@ -24,30 +29,38 @@ public class TestClass {
         driver = new ChromeDriver();
         driver.manage().window().maximize();
         driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+        ScreenShooter.init(driver);
     }
 
+    @Features({"Жанры"})
+    @Stories({"Поиск по жанрам"})
+    @Description(
+            value = "Описание теста",
+            type = DescriptionType.MARKDOWN
+    )
+    @Title("Поиск по жанрам")
+    @Severity(SeverityLevel.CRITICAL)
     @Test
     public void test() throws Throwable {
         driver.get("https://music.yandex.ru/");
         List<String> genres = getGenres();
-        for (String genre : genres) {
+        for (String genre : genres.subList(0, 1)) {
             List<String> tracks = getTracks(genre);
-            System.out.println("Жанр : " + genre + " Треки : " + tracks);
         }
     }
 
+    @Step("Получение жанров")
     public List<String> getGenres() {
         driver.findElement(By.xpath("//div[text()='Жанры']")).click();
         WebDriverWait wait = new WebDriverWait(driver, 10);
         wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(By.xpath("//div[@class='head__subnav nav__subnav']")));
         List<WebElement> list = driver.findElements(By.xpath("//div[@class='nav__sub-item'][position() > 1 and position() < last()]/a/span"));
-        List<String> genres = new ArrayList<String>();
-        for (WebElement element1 : list) {
-            genres.add(element1.getText());
-        }
-        return genres;
+        return list.stream()
+                .map(WebElement::getText)
+                .collect(Collectors.toList());
     }
 
+    @Step("Получение треков из жанра \"{0}\"")
     public List<String> getTracks(String genre) throws Throwable {
         List<String> trackNames = new ArrayList<String>();
         driver.findElement(By.xpath("//span[@class='button__label' and text()='" + genre + "']")).click();
@@ -56,8 +69,15 @@ public class TestClass {
         for (WebElement element : tracks) {
             trackNames.add(element.getText());
         }
-        Assert.assertEquals(tracks.size(), 10);
+        attachText(genre, trackNames.toString());
+        ScreenShooter.takeScreenshot(genre);
+        Assert.assertFalse(tracks.isEmpty());
         return trackNames;
+    }
+
+    @Attachment(value = "{0}")
+    public String attachText(String title, String text) {
+        return text;
     }
 
     @AfterTest
